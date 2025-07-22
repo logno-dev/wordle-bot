@@ -1,0 +1,42 @@
+{
+  "name": "base-bailey-json",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/app.js",
+  "type": "module",
+  "scripts": {
+    "start": "node ./dist/app.js",
+    "lint": "eslint . --no-ignore",
+    "dev": "npm run lint && nodemon ./src/app.ts",
+    "build": "npx rollup -c",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "rebuild:native": "./scripts/rebuild-native.sh",
+    "db:sample": "tsx ./scripts/add-sample-data.ts",
+    "test:stats": "tsx ./scripts/test-stats.ts"
+  },
+  "keywords": [],
+  "dependencies": {
+    "@builderbot/bot": "1.2.9",
+    "@builderbot/provider-baileys": "1.2.9",
+    "better-sqlite3": "^12.2.0",
+    "dotenv": "^17.2.0",
+    "drizzle-orm": "^0.44.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20.11.30",
+    "@typescript-eslint/eslint-plugin": "^7.2.0",
+    "@typescript-eslint/parser": "^7.4.0",
+    "drizzle-kit": "^0.31.4",
+    "eslint": "^9",
+    "eslint-plugin-builderbot": "latest",
+    "nodemon": "^3.1.0",
+    "rollup": "^4.10.0",
+    "rollup-plugin-typescript2": "^0.36.0",
+    "tsx": "^4.7.1",
+    "typescript": "^5.4.3"
+  },
+  "author": "",
+  "license": "ISC"
+}
