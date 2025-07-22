@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  wa-bot:
+    build: .
+    ports:
+      - "${PORT:-3008}:${PORT:-3008}"
+    volumes:
+      - ./data:/app/data
+      - ./bot_sessions:/app/bot_sessions
+    env_file:
+      - .env
+    restart: unless-stopped

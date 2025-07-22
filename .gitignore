@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+pnpm-lock.yaml
+
+# Build output
+dist/
+
+# Environment variables
+.env
+
+# Database
+data/
+*.db
+*.sqlite
+
+# Bot sessions (contains sensitive WhatsApp session data)
+bot_sessions/
+*.json
+
+# Logs
+*.log
+baileys.log
+core.class.log
+queue.class.log
+
+# QR code images
+bot.qr.png
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+tmp/
+temp/
