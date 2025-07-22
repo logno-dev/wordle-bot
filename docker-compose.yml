@@ -4,8 +4,13 @@ services:
     ports:
       - "${PORT:-3008}:${PORT:-3008}"
     volumes:
-      - ./data:/app/data
       - ./bot_sessions:/app/bot_sessions
+    environment:
+      - PORT=${PORT:-3008}
+      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_AUTH_TOKEN=${DATABASE_AUTH_TOKEN}
+      - BOT_NAME=${BOT_NAME}
+      - USE_PAIRING_CODE=${USE_PAIRING_CODE}
     env_file:
       - .env
     restart: unless-stopped

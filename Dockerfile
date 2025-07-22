@@ -44,11 +44,10 @@ COPY --from=builder /app/node_modules ./node_modules
 
 # Create user and directories
 RUN addgroup -g 1001 -S nodejs && adduser -S -u 1001 nodejs \
-    && mkdir -p /app/data && chown -R nodejs:nodejs /app/data \
     && mkdir -p /app/bot_sessions && chown -R nodejs:nodejs /app/bot_sessions \
     && chown -R nodejs:nodejs /app
 
-VOLUME ["/app/data", "/app/bot_sessions"]
+VOLUME ["/app/bot_sessions"]
 
 USER nodejs
 

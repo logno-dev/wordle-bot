@@ -6,7 +6,7 @@ import { db, initializeDatabase, schema } from './db'
 import { parseWordleMessage } from './utils/wordle-parser'
 import { getPlayerStats, getTotalStats, getRecentActivity } from './db/queries'
 import { formatStatsMessage, formatPersonalStats } from './utils/stats-formatter'
-import { mkdirSync } from 'fs'
+
 import { config } from 'dotenv'
 
 config()
@@ -75,8 +75,8 @@ const botHelp = addKeyword<Provider, Database>('!help', { sensitive: false })
 
 
 const main = async () => {
-  mkdirSync(join(process.cwd(), 'data'), { recursive: true })
-  initializeDatabase()
+  // Initialize database (remote or in-memory)
+  await initializeDatabase()
 
   const adapterFlow = createFlow([wordleFlow, statsFlow, myStatsFlow, botIntro, botHelp])
 
