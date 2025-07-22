@@ -2,8 +2,8 @@ import { createClient } from '@libsql/client'
 import { drizzle } from 'drizzle-orm/libsql'
 import { migrate } from 'drizzle-orm/libsql/migrator'
 import * as schema from './schema'
-import { join, dirname } from 'path'
-import { mkdirSync, existsSync } from 'fs'
+import { join, dirname, resolve } from 'path'
+import { mkdirSync, existsSync, writeFileSync } from 'fs'
 
 const dbPath = process.env.DATABASE_PATH || join(process.cwd(), 'data', 'wordle.db')
 
@@ -13,9 +13,15 @@ if (!existsSync(dbDir)) {
   mkdirSync(dbDir, { recursive: true })
 }
 
-// Create libsql client with local file
+// Ensure the database file exists (create empty file if it doesn't)
+if (!existsSync(dbPath)) {
+  writeFileSync(dbPath, '')
+}
+
+// Create libsql client with absolute path
+const absolutePath = resolve(dbPath)
 const client = createClient({
-  url: `file:${dbPath}`
+  url: `file:${absolutePath}`
 })
 
 export const db = drizzle(client, { schema })
