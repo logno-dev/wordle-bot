@@ -13,7 +13,7 @@ RUN apk add --no-cache --virtual .gyp \
         make \
         g++ \
     && apk add --no-cache git \
-    && pnpm install --ignore-scripts=false && pnpm run build \
+    && pnpm install && cd node_modules/.pnpm/better-sqlite3@12.2.0/node_modules/better-sqlite3 && npm run build-release && cd /app && pnpm run build \
     && apk del .gyp
 
 FROM node:21-alpine3.18 as deploy
@@ -32,10 +32,11 @@ COPY --from=builder /app/*.json /app/*-lock.yaml ./
 RUN corepack enable && corepack prepare pnpm@latest --activate 
 ENV PNPM_HOME=/usr/local/bin
 
-RUN npm cache clean --force && pnpm install --production --ignore-scripts \
+RUN pnpm install --production \
     && addgroup -g 1001 -S nodejs && adduser -S -u 1001 nodejs \
-    && rm -rf $PNPM_HOME/.npm $PNPM_HOME/.node-gyp \
     && mkdir -p /app/data && chown -R nodejs:nodejs /app/data
+
+COPY --from=builder /app/node_modules/.pnpm/better-sqlite3@12.2.0/node_modules/better-sqlite3/build ./node_modules/.pnpm/better-sqlite3@12.2.0/node_modules/better-sqlite3/build
 
 VOLUME ["/app/data", "/app/bot_sessions"]
 

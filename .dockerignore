@@ -1,0 +1,10 @@
+node_modules
+.git
+.env
+bot_sessions
+data
+*.log
+*.qr.png
+.gitignore
+README.md
+WORDLE_SETUP.md
