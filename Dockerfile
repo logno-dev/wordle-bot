@@ -43,15 +43,26 @@ COPY --from=builder /app/drizzle.config.ts ./
 # Copy the entire node_modules from builder
 COPY --from=builder /app/node_modules ./node_modules
 
+# Install su-exec for user switching
+RUN apk add --no-cache su-exec
+
 # Create user and directories for WhatsApp sessions
 RUN addgroup -g 1001 -S nodejs && adduser -S -u 1001 nodejs \
-    && mkdir -p /app/wordle-tracker-bot_sessions && chown -R nodejs:nodejs /app/wordle-tracker-bot_sessions \
+    && mkdir -p /app/wordle-tracker-bot_sessions \
     && chown -R nodejs:nodejs /app
 
 # Volume for WhatsApp session persistence
 VOLUME ["/app/wordle-tracker-bot_sessions"]
 
-USER nodejs
+# Create an entrypoint script to fix permissions at runtime
+RUN echo '#!/bin/sh' > /entrypoint.sh && \
+    echo '# Fix permissions for mounted volume' >> /entrypoint.sh && \
+    echo 'chown -R nodejs:nodejs /app/wordle-tracker-bot_sessions 2>/dev/null || true' >> /entrypoint.sh && \
+    echo '# Switch to nodejs user and run the command' >> /entrypoint.sh && \
+    echo 'exec su-exec nodejs "$@"' >> /entrypoint.sh && \
+    chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
 
 # Run TypeScript directly with bun and load env file
 CMD ["bun", "--env-file=.env", "src/app.ts"]
