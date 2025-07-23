@@ -10,6 +10,8 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - DATABASE_AUTH_TOKEN=${DATABASE_AUTH_TOKEN}
       - BOT_NAME=${BOT_NAME:-wordle-tracker-bot}
+      - DOCKER_CONTAINER=true
+      - NODE_ENV=${NODE_ENV:-development}
     env_file:
       - .env
     restart: unless-stopped

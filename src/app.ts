@@ -17,9 +17,19 @@ import { formatStatsMessage, formatPersonalStats } from './utils/stats-formatter
 
 config()
 
+// Environment detection
+const isProduction = process.env.NODE_ENV === 'production'
+const isLocalDevelopment = !isProduction && process.env.LOCAL_DEV === 'true'
+const isDockerContainer = process.env.DOCKER_CONTAINER === 'true'
+
 console.log('Environment check:', {
   DATABASE_URL: process.env.DATABASE_URL ? 'Set' : 'Not set',
-  BOT_NAME: process.env.BOT_NAME || 'wordle-tracker-bot'
+  BOT_NAME: process.env.BOT_NAME || 'wordle-tracker-bot',
+  NODE_ENV: process.env.NODE_ENV || 'development',
+  isProduction,
+  isLocalDevelopment,
+  isDockerContainer,
+  platform: process.platform
 })
 
 let isConnecting = false
@@ -228,26 +238,43 @@ const connectToWhatsApp = async () => {
       } catch (e) {}
     }
 
-    // Production-optimized configuration
-    const isProduction = process.env.NODE_ENV === 'production'
+    // Environment-specific configuration
+    let browserConfig
+    let qrTimeoutMs
+    let shouldPrintQR
+    
+    if (isProduction) {
+      // Production server configuration
+      browserConfig = Browsers.ubuntu('Wordle Tracker Bot')
+      qrTimeoutMs = 60000
+      shouldPrintQR = false
+      console.log('🏭 Using production configuration (Ubuntu browser)')
+    } else if (isDockerContainer) {
+      // Local development in Docker - use Chrome to avoid WhatsApp restrictions
+      browserConfig = ['Chrome (Linux)', 'Wordle Tracker Bot', '22.04.4']
+      qrTimeoutMs = 90000 // Longer timeout for local development
+      shouldPrintQR = true
+      console.log('🐳 Using Docker development configuration (Chrome browser)')
+    } else {
+      // Native local development
+      browserConfig = Browsers.macOS('Wordle Tracker Bot')
+      qrTimeoutMs = 90000
+      shouldPrintQR = true
+      console.log('💻 Using native development configuration (macOS browser)')
+    }
     
     sock = makeWASocket({
       auth: state,
-      browser: isProduction 
-        ? Browsers.ubuntu('Wordle Tracker Bot')  // Better for production servers
-        : Browsers.macOS('Wordle Tracker Bot'),
+      browser: browserConfig,
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 0,
       keepAliveIntervalMs: 10000,
-      // Production-specific settings
-      retryRequestDelayMs: 250,
-      maxMsgRetryCount: 5,
-      // Disable some features that can cause issues in production
+      retryRequestDelayMs: isProduction ? 250 : 500,
+      maxMsgRetryCount: isProduction ? 5 : 3,
       shouldSyncHistoryMessage: () => false,
       shouldIgnoreJid: () => false,
-      // Better logging in production
-      printQRInTerminal: !isProduction, // Disable terminal QR in production
-      qrTimeout: 60000 // 60 second QR timeout
+      printQRInTerminal: shouldPrintQR,
+      qrTimeout: qrTimeoutMs
     })
 
     sock.ev.on('connection.update', async (update) => {
