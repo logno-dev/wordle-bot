@@ -2,11 +2,11 @@ services:
   wa-bot:
     build: .
     ports:
-      - "${WEB_PORT:-3000}:${WEB_PORT:-3000}"
+      - "${WEB_PORT:-3001}:${WEB_PORT:-3001}"
     volumes:
       - ./wordle-tracker-bot_sessions:/app/wordle-tracker-bot_sessions
     environment:
-      - WEB_PORT=${WEB_PORT:-3000}
+      - WEB_PORT=${WEB_PORT:-3001}
       - DATABASE_URL=${DATABASE_URL}
       - DATABASE_AUTH_TOKEN=${DATABASE_AUTH_TOKEN}
       - BOT_NAME=${BOT_NAME:-wordle-tracker-bot}

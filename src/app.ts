@@ -29,27 +29,55 @@ const MAX_RECONNECT_ATTEMPTS = 3
 
 // Web server for QR code display
 let currentQRCode: string | null = null
+let connectionStatus = 'disconnected' // disconnected, connecting, qr_ready, connected
+let qrTimeout: NodeJS.Timeout | null = null
 const app = express()
-const WEB_PORT = process.env.WEB_PORT || 3000
+const WEB_PORT = process.env.WEB_PORT || 3001
+const QR_TIMEOUT_MS = 60000 // 60 seconds timeout for QR code
 
 app.get('/', (req, res) => {
-  if (!currentQRCode) {
+  const getStatusMessage = () => {
+    switch (connectionStatus) {
+      case 'connected':
+        return { message: '✅ Connected to WhatsApp!', color: '#28a745', refresh: 30 }
+      case 'connecting':
+        return { message: '🔄 Connecting to WhatsApp...', color: '#007bff', refresh: 5 }
+      case 'qr_ready':
+        return { message: '📱 Scan QR code with WhatsApp', color: '#007bff', refresh: 10 }
+      default:
+        return { message: '⏳ Initializing...', color: '#666', refresh: 5 }
+    }
+  }
+
+  const status = getStatusMessage()
+
+  if (!currentQRCode || connectionStatus === 'connected') {
     res.send(`
       <html>
         <head>
-          <title>WhatsApp Bot - QR Code</title>
-          <meta http-equiv="refresh" content="5">
+          <title>WhatsApp Bot - Status</title>
+          <meta http-equiv="refresh" content="${status.refresh}">
           <style>
             body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-            .status { font-size: 18px; margin: 20px 0; }
-            .waiting { color: #666; }
-            .connected { color: #28a745; }
+            .status { font-size: 18px; margin: 20px 0; color: ${status.color}; }
+            .info { color: #666; margin: 10px 0; }
+            .refresh-btn { 
+              background: #007bff; color: white; border: none; 
+              padding: 10px 20px; border-radius: 5px; cursor: pointer; 
+              margin: 20px 10px; font-size: 16px;
+            }
+            .refresh-btn:hover { background: #0056b3; }
           </style>
         </head>
         <body>
           <h1>WhatsApp Bot</h1>
-          <div class="status waiting">Waiting for QR code...</div>
-          <p>The page will refresh automatically when a QR code is available.</p>
+          <div class="status">${status.message}</div>
+          ${connectionStatus === 'connected' ? 
+            '<div class="info">Bot is ready to receive messages!</div>' : 
+            '<div class="info">Waiting for QR code...</div>'
+          }
+          <button class="refresh-btn" onclick="location.reload()">Refresh</button>
+          <div class="info">Page refreshes automatically every ${status.refresh} seconds</div>
         </body>
       </html>
     `)
@@ -64,21 +92,33 @@ app.get('/', (req, res) => {
             .qr-container { margin: 20px 0; }
             .instructions { font-size: 16px; margin: 20px 0; color: #333; }
             .status { font-size: 18px; margin: 20px 0; color: #007bff; }
+            .warning { color: #ff6b35; font-size: 14px; margin: 10px 0; }
+            .refresh-btn { 
+              background: #007bff; color: white; border: none; 
+              padding: 10px 20px; border-radius: 5px; cursor: pointer; 
+              margin: 20px 10px; font-size: 16px;
+            }
+            .refresh-btn:hover { background: #0056b3; }
           </style>
         </head>
         <body>
           <h1>WhatsApp Bot - Scan QR Code</h1>
-          <div class="status">Scan this QR code with WhatsApp</div>
+          <div class="status">${status.message}</div>
           <div class="qr-container">
             <img src="data:image/png;base64,${currentQRCode}" alt="QR Code" style="max-width: 300px; max-height: 300px;" />
           </div>
           <div class="instructions">
+            <p><strong>Steps to connect:</strong></p>
             <p>1. Open WhatsApp on your phone</p>
             <p>2. Go to Settings → Linked Devices</p>
             <p>3. Tap "Link a Device"</p>
-            <p>4. Scan this QR code</p>
+            <p>4. Scan this QR code quickly</p>
           </div>
-          <p><em>This page will refresh automatically. Once connected, you can close this page.</em></p>
+          <div class="warning">⚠️ QR code expires after 60 seconds. If it takes too long, refresh the page.</div>
+          <button class="refresh-btn" onclick="location.reload()">Refresh QR Code</button>
+          <div style="color: #666; font-size: 14px; margin: 10px 0;">
+            Page refreshes automatically every 10 seconds
+          </div>
         </body>
       </html>
     `)
@@ -89,7 +129,9 @@ app.get('/status', (req, res) => {
   res.json({
     connected: sock?.user ? true : false,
     hasQR: !!currentQRCode,
-    user: sock?.user || null
+    user: sock?.user || null,
+    status: connectionStatus,
+    timestamp: new Date().toISOString()
   })
 })
 
@@ -106,6 +148,7 @@ const connectToWhatsApp = async () => {
   }
   
   isConnecting = true
+  connectionStatus = 'connecting'
   
   try {
     // Initialize database
@@ -135,6 +178,12 @@ const connectToWhatsApp = async () => {
       if (qr) {
         console.log('\n🔗 QR code generated - view at http://localhost:' + WEB_PORT)
         qrcode.generate(qr, { small: true })
+        connectionStatus = 'qr_ready'
+        
+        // Clear any existing timeout
+        if (qrTimeout) {
+          clearTimeout(qrTimeout)
+        }
         
         // Generate base64 QR code for web display
         try {
@@ -144,6 +193,21 @@ const connectToWhatsApp = async () => {
             margin: 2
           })
           currentQRCode = currentQRCode.replace('data:image/png;base64,', '')
+          
+          // Set timeout for QR code
+          qrTimeout = setTimeout(() => {
+            console.log('⏰ QR code timeout - clearing QR and attempting reconnect')
+            currentQRCode = null
+            connectionStatus = 'disconnected'
+            if (sock) {
+              try {
+                sock.end()
+              } catch (e) {}
+            }
+            // Attempt to reconnect after timeout
+            setTimeout(() => connectToWhatsApp(), 2000)
+          }, QR_TIMEOUT_MS)
+          
         } catch (error) {
           console.error('Error generating QR code for web:', error)
         }
@@ -182,7 +246,15 @@ const connectToWhatsApp = async () => {
       } else if (connection === 'open') {
         console.log('✅ Connected to WhatsApp!')
         console.log('🤖 Bot is ready to receive messages')
-        currentQRCode = null // Clear QR code when connected
+        
+        // Clear QR code and timeout when connected
+        currentQRCode = null
+        connectionStatus = 'connected'
+        if (qrTimeout) {
+          clearTimeout(qrTimeout)
+          qrTimeout = null
+        }
+        
         isConnecting = false
         reconnectAttempts = 0
       }
