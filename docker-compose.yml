@@ -2,15 +2,16 @@ services:
   wa-bot:
     build: .
     ports:
-      - "${PORT:-3008}:${PORT:-3008}"
+      - "${WEB_PORT:-3000}:${WEB_PORT:-3000}"
     volumes:
-      - ./bot_sessions:/app/bot_sessions
+      - ./wordle-tracker-bot_sessions:/app/wordle-tracker-bot_sessions
     environment:
-      - PORT=${PORT:-3008}
+      - WEB_PORT=${WEB_PORT:-3000}
       - DATABASE_URL=${DATABASE_URL}
       - DATABASE_AUTH_TOKEN=${DATABASE_AUTH_TOKEN}
-      - BOT_NAME=${BOT_NAME}
-      - USE_PAIRING_CODE=${USE_PAIRING_CODE}
+      - BOT_NAME=${BOT_NAME:-wordle-tracker-bot}
     env_file:
       - .env
     restart: unless-stopped
+    stdin_open: true
+    tty: true

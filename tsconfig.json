@@ -2,6 +2,8 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
     "declaration": false,
     "declarationMap": false,
     "moduleResolution": "node",
@@ -9,12 +11,14 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
     "sourceMap": false,
     "outDir": "./dist",
     "baseUrl": "./",
     "rootDir": "./",
     "incremental": true,
     "skipLibCheck": true,
+    "strict": false,
     "paths": {
       "~/*": ["./src/*"]
     }

@@ -11,7 +11,7 @@ RUN apk add --no-cache --virtual .gyp \
     && apk add --no-cache git
 
 # Copy package files
-COPY package.json bun.lockb* ./
+COPY package.json package-lock.json* ./
 
 # Install dependencies (Bun handles native modules much better)
 RUN bun install --frozen-lockfile
@@ -19,8 +19,7 @@ RUN bun install --frozen-lockfile
 # Copy source code
 COPY . .
 
-# Build the application
-RUN bun run build
+# No build step needed - we'll run TypeScript directly with bun
 
 # Clean up build dependencies
 RUN apk del .gyp
@@ -33,23 +32,25 @@ ARG PORT
 ENV PORT $PORT
 EXPOSE $PORT
 
-# Copy built application
-COPY --from=builder /app/assets ./assets
-COPY --from=builder /app/dist ./dist
+# Copy source files and dependencies
+COPY --from=builder /app/src ./src
 COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/tsconfig.json ./
+COPY --from=builder /app/drizzle.config.ts ./
 
-# Copy the entire node_modules from builder (no native binaries needed with Bun SQLite)
+# Copy the entire node_modules from builder
 COPY --from=builder /app/node_modules ./node_modules
 
-# Create user and directories
+# Create user and directories for WhatsApp sessions
 RUN addgroup -g 1001 -S nodejs && adduser -S -u 1001 nodejs \
-    && mkdir -p /app/bot_sessions && chown -R nodejs:nodejs /app/bot_sessions \
+    && mkdir -p /app/wordle-tracker-bot_sessions && chown -R nodejs:nodejs /app/wordle-tracker-bot_sessions \
     && chown -R nodejs:nodejs /app
 
-VOLUME ["/app/bot_sessions"]
+# Volume for WhatsApp session persistence
+VOLUME ["/app/wordle-tracker-bot_sessions"]
 
 USER nodejs
 
-# Use Bun to run the application (with built-in SQLite support)
-CMD ["bun", "run", "start"]
+# Run TypeScript directly with bun and load env file
+CMD ["bun", "--env-file=.env", "src/app.ts"]
