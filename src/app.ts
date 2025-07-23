@@ -1,6 +1,6 @@
-import makeWASocket, { 
-  DisconnectReason, 
-  useMultiFileAuthState, 
+import makeWASocket, {
+  DisconnectReason,
+  useMultiFileAuthState,
   isJidGroup,
   jidNormalizedUser,
   Browsers
@@ -85,10 +85,10 @@ app.get('/', (req, res) => {
         <body>
           <h1>WhatsApp Bot</h1>
           <div class="status">${status.message}</div>
-          ${connectionStatus === 'connected' ? 
-            '<div class="info">Bot is ready to receive messages!</div>' : 
-            '<div class="info">Waiting for QR code...</div>'
-          }
+          ${connectionStatus === 'connected' ?
+        '<div class="info">Bot is ready to receive messages!</div>' :
+        '<div class="info">Waiting for QR code...</div>'
+      }
           <button class="refresh-btn" onclick="location.reload()">Refresh</button>
           <div class="info">Page refreshes automatically every ${status.refresh} seconds</div>
         </body>
@@ -163,40 +163,40 @@ app.get('/health', (req, res) => {
 // Manual QR refresh endpoint for production troubleshooting
 app.post('/refresh-qr', (req, res) => {
   console.log('🔄 Manual QR refresh requested')
-  
+
   if (connectionStatus === 'connected') {
-    res.json({ 
-      success: false, 
+    res.json({
+      success: false,
       message: 'Already connected to WhatsApp',
-      status: connectionStatus 
+      status: connectionStatus
     })
     return
   }
-  
+
   // Clear current QR and force reconnection
   currentQRCode = null
   connectionStatus = 'connecting'
   qrGenerationCount = Math.max(0, qrGenerationCount - 2) // Give it more attempts
-  
+
   if (qrTimeout) {
     clearTimeout(qrTimeout)
     qrTimeout = null
   }
-  
+
   if (sock) {
     try {
       sock.end()
-    } catch (e) {}
+    } catch (e) { }
   }
-  
+
   // Force reconnection
   setTimeout(() => {
     console.log('🔄 Forcing reconnection after manual refresh')
     connectToWhatsApp()
   }, 1000)
-  
-  res.json({ 
-    success: true, 
+
+  res.json({
+    success: true,
     message: 'QR refresh initiated',
     qrAttempt: qrGenerationCount + 1
   })
@@ -206,7 +206,7 @@ app.post('/refresh-qr', (req, res) => {
 app.listen(WEB_PORT, () => {
   console.log(`🌐 Web server running at http://localhost:${WEB_PORT}`)
   console.log(`📱 Open this URL to view the QR code: http://localhost:${WEB_PORT}`)
-  
+
   // Start WhatsApp connection after web server is ready
   console.log('🚀 Starting Wordle Tracker Bot...')
   connectToWhatsApp().catch((error) => {
@@ -220,10 +220,10 @@ const connectToWhatsApp = async () => {
     console.log('Already connecting, skipping...')
     return
   }
-  
+
   isConnecting = true
   connectionStatus = 'connecting'
-  
+
   try {
     // Initialize database
     await initializeDatabase()
@@ -235,14 +235,14 @@ const connectToWhatsApp = async () => {
     if (sock) {
       try {
         sock.end()
-      } catch (e) {}
+      } catch (e) { }
     }
 
     // Environment-specific configuration
     let browserConfig
     let qrTimeoutMs
     let shouldPrintQR
-    
+
     if (isProduction) {
       // Production server configuration
       browserConfig = Browsers.ubuntu('Wordle Tracker Bot')
@@ -262,7 +262,7 @@ const connectToWhatsApp = async () => {
       shouldPrintQR = true
       console.log('💻 Using native development configuration (macOS browser)')
     }
-    
+
     sock = makeWASocket({
       auth: state,
       browser: browserConfig,
@@ -279,26 +279,26 @@ const connectToWhatsApp = async () => {
 
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update
-      
+
       if (qr) {
         qrGenerationCount++
         lastQRTime = Date.now()
-        
+
         console.log(`\n🔗 QR code generated (#${qrGenerationCount}) - view at http://localhost:${WEB_PORT}`)
         console.log(`📊 QR Generation Stats: Attempt ${qrGenerationCount}/${MAX_QR_ATTEMPTS}`)
-        
+
         // Only show terminal QR in development
         if (process.env.NODE_ENV !== 'production') {
           qrcode.generate(qr, { small: true })
         }
-        
+
         connectionStatus = 'qr_ready'
-        
+
         // Clear any existing timeout
         if (qrTimeout) {
           clearTimeout(qrTimeout)
         }
-        
+
         // Generate base64 QR code for web display with production optimizations
         try {
           currentQRCode = await QRCode.toDataURL(qr, {
@@ -312,15 +312,15 @@ const connectToWhatsApp = async () => {
             errorCorrectionLevel: 'M' // Medium error correction
           })
           currentQRCode = currentQRCode.replace('data:image/png;base64,', '')
-          
+
           console.log('✅ QR code generated successfully for web display')
-          
+
           // Set timeout for QR code with exponential backoff
           const timeoutDuration = Math.min(QR_TIMEOUT_MS * Math.pow(1.2, qrGenerationCount - 1), 120000)
-          
+
           qrTimeout = setTimeout(() => {
-            console.log(`⏰ QR code timeout after ${timeoutDuration/1000}s (attempt ${qrGenerationCount})`)
-            
+            console.log(`⏰ QR code timeout after ${timeoutDuration / 1000}s (attempt ${qrGenerationCount})`)
+
             if (qrGenerationCount >= MAX_QR_ATTEMPTS) {
               console.log('❌ Max QR attempts reached. Stopping reconnection attempts.')
               console.log('💡 Try restarting the container or check network connectivity.')
@@ -328,41 +328,41 @@ const connectToWhatsApp = async () => {
               connectionStatus = 'disconnected'
               return
             }
-            
+
             currentQRCode = null
             connectionStatus = 'connecting'
-            
+
             if (sock) {
               try {
                 sock.end()
-              } catch (e) {}
+              } catch (e) { }
             }
-            
+
             // Attempt to reconnect with delay
             const reconnectDelay = 3000 + (qrGenerationCount * 1000) // Increasing delay
-            console.log(`🔄 Reconnecting in ${reconnectDelay/1000}s...`)
+            console.log(`🔄 Reconnecting in ${reconnectDelay / 1000}s...`)
             setTimeout(() => connectToWhatsApp(), reconnectDelay)
           }, timeoutDuration)
-          
+
         } catch (error) {
           console.error('❌ Error generating QR code for web:', error)
           // Try to reconnect even if QR generation fails
           setTimeout(() => connectToWhatsApp(), 5000)
         }
       }
-      
+
       if (connection === 'close') {
         isConnecting = false
         const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut
-        
+
         console.log('Connection closed:', {
           reason: lastDisconnect?.error?.message,
           statusCode,
           shouldReconnect,
           attempts: reconnectAttempts
         })
-        
+
         // Handle conflict error specifically
         if (statusCode === 440) { // Conflict error
           console.log('❌ Conflict detected - another WhatsApp Web session is active')
@@ -372,7 +372,7 @@ const connectToWhatsApp = async () => {
           console.log('3. Restart this bot')
           process.exit(1)
         }
-        
+
         if (shouldReconnect && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
           reconnectAttempts++
           console.log(`Reconnecting... (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`)
@@ -384,7 +384,7 @@ const connectToWhatsApp = async () => {
       } else if (connection === 'open') {
         console.log('✅ Connected to WhatsApp!')
         console.log('🤖 Bot is ready to receive messages')
-        
+
         // Clear QR code and timeout when connected
         currentQRCode = null
         connectionStatus = 'connected'
@@ -392,11 +392,11 @@ const connectToWhatsApp = async () => {
           clearTimeout(qrTimeout)
           qrTimeout = null
         }
-        
+
         // Reset counters on successful connection
         qrGenerationCount = 0
         lastQRTime = 0
-        
+
         isConnecting = false
         reconnectAttempts = 0
       }
@@ -430,46 +430,46 @@ const connectToWhatsApp = async () => {
             console.log('❌ No message content, skipping')
             continue
           }
-          
+
           // Allow messages from host, but skip bot's own command responses
           if (message.key.fromMe) {
-            const messageText = message.message.conversation || 
-                               message.message.extendedTextMessage?.text || 
-                               message.message.imageMessage?.caption ||
-                               message.message.videoMessage?.caption || ''
-            
+            const messageText = message.message.conversation ||
+              message.message.extendedTextMessage?.text ||
+              message.message.imageMessage?.caption ||
+              message.message.videoMessage?.caption || ''
+
             // Skip if it's a bot response (starts with emoji or common bot phrases)
-            if (messageText.startsWith('✅') || 
-                messageText.startsWith('📊') || 
-                messageText.startsWith('🤖') ||
-                messageText.startsWith('❌') ||
-                messageText.includes('Wordle Tracker Bot Commands') ||
-                messageText.includes('Overall statistics') ||
-                messageText.includes('Sorry, there was an error')) {
+            if (messageText.startsWith('✅') ||
+              messageText.startsWith('📊') ||
+              messageText.startsWith('🤖') ||
+              messageText.startsWith('❌') ||
+              messageText.includes('Wordle Tracker Bot Commands') ||
+              messageText.includes('Overall statistics') ||
+              messageText.includes('Sorry, there was an error')) {
               console.log('❌ Skipping bot response message')
               continue
             }
-            
+
             console.log('✅ Processing message from host')
           }
-          
-          const messageText = message.message.conversation || 
-                             message.message.extendedTextMessage?.text || 
-                             message.message.imageMessage?.caption ||
-                             message.message.videoMessage?.caption || ''
-          
+
+          const messageText = message.message.conversation ||
+            message.message.extendedTextMessage?.text ||
+            message.message.imageMessage?.caption ||
+            message.message.videoMessage?.caption || ''
+
           console.log('📝 Extracted text:', messageText)
-          
+
           if (!messageText) {
             console.log('❌ No text content found, skipping')
             continue
           }
-          
+
           const from = message.key.remoteJid!
           const isGroup = isJidGroup(from)
           const senderJid = isGroup ? message.key.participant! : from
           const senderName = message.pushName || jidNormalizedUser(senderJid)
-          
+
           console.log('📨 Message received:', {
             from: isGroup ? 'Group' : 'Individual',
             sender: senderName,
@@ -484,19 +484,19 @@ const connectToWhatsApp = async () => {
             await handleStatsCommand(sock, from)
             continue
           }
-          
+
           if (messageText.toLowerCase().includes('!mystats')) {
             console.log('🎯 Handling !mystats command')
             await handleMyStatsCommand(sock, from, senderName)
             continue
           }
-          
+
           if (messageText.toLowerCase().includes('!help')) {
             console.log('🎯 Handling !help command')
             await handleHelpCommand(sock, from)
             continue
           }
-          
+
           if (messageText.toLowerCase().includes('!intro')) {
             console.log('🎯 Handling !intro command')
             await handleIntroCommand(sock, from)
@@ -551,7 +551,7 @@ const handleWordleMessage = async (sock: any, from: string, messageText: string,
     isGroup,
     preview: messageText.substring(0, 100) + '...'
   })
-  
+
   const wordleData = parseWordleMessage(messageText)
 
   if (!wordleData) {
@@ -569,13 +569,10 @@ const handleWordleMessage = async (sock: any, from: string, messageText: string,
       failed: wordleData.failed,
       date: wordleData.date
     }
-    
+
     await db.insert(schema.wordleScores).values(insertData)
     console.log('💾 Successfully saved Wordle score to database')
 
-    // Send confirmation (optional)
-    const confirmationMsg = `✅ Wordle ${wordleData.gameNumber} score recorded for ${senderName}!`
-    await sock.sendMessage(from, { text: confirmationMsg })
 
   } catch (error) {
     console.error('❌ Error saving Wordle score:', error)
@@ -624,7 +621,7 @@ const handleHelpCommand = async (sock: any, from: string) => {
 !intro - Bot introduction
 
 Just share your Wordle results and I'll track them automatically!`
-  
+
   await sock.sendMessage(from, { text: helpMessage })
   console.log('ℹ️ Help message sent')
 }
@@ -639,7 +636,7 @@ I can help you track your Wordle scores and provide stats for you and your frien
 ❓ Use !help for available commands
 
 Just share your Wordle results in this chat and I'll automatically track them!`
-  
+
   await sock.sendMessage(from, { text: introMessage })
   console.log('👋 Intro message sent')
 }
