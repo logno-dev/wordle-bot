@@ -1,4 +1,4 @@
-import { join } from 'path'
+
 import { createBot, createProvider, createFlow, addKeyword } from '@builderbot/bot'
 import { MemoryDB as Database } from '@builderbot/bot'
 import { BaileysProvider as Provider } from '@builderbot/provider-baileys'
@@ -14,21 +14,34 @@ config()
 const PORT = process.env.PORT ?? 3008
 
 const wordleFlow = addKeyword<Provider, Database>('wordle', { sensitive: false })
-  .addAction(async (ctx, { flowDynamic }) => {
+  .addAction(async (ctx) => {
+    console.log('Received message:', {
+      body: ctx.body,
+      from: ctx.from,
+      pushName: ctx.pushName,
+      isGroup: ctx.from.includes('@g.us')
+    })
+    
     const wordleData = parseWordleMessage(ctx.body)
+    console.log('Parsed Wordle data:', wordleData)
 
     if (!wordleData) {
+      console.log('No Wordle data found in message')
       return
     }
 
     try {
-      await db.insert(schema.wordleScores).values({
+      const insertData = {
         senderName: ctx.pushName || ctx.from,
         gameNumber: wordleData.gameNumber,
         attempts: wordleData.attempts,
         failed: wordleData.failed,
         date: wordleData.date
-      })
+      }
+      console.log('Inserting data:', insertData)
+      
+      await db.insert(schema.wordleScores).values(insertData)
+      console.log('Successfully saved Wordle score')
 
     } catch (error) {
       console.error('Error saving Wordle score:', error)
@@ -73,12 +86,23 @@ const botIntro = addKeyword<Provider, Database>('!intro', { sensitive: false })
 const botHelp = addKeyword<Provider, Database>('!help', { sensitive: false })
   .addAnswer('!stats - Overall statistics\n\n!mystats - Your personal statistics\n\n!help - This message')
 
+const debugFlow = addKeyword<Provider, Database>('', { sensitive: false })
+  .addAction(async (ctx) => {
+    console.log('DEBUG - Any message received:', {
+      body: ctx.body,
+      from: ctx.from,
+      pushName: ctx.pushName,
+      isGroup: ctx.from.includes('@g.us'),
+      timestamp: new Date().toISOString()
+    })
+  })
+
 
 const main = async () => {
   // Initialize database (remote or in-memory)
   await initializeDatabase()
 
-  const adapterFlow = createFlow([wordleFlow, statsFlow, myStatsFlow, botIntro, botHelp])
+  const adapterFlow = createFlow([wordleFlow, statsFlow, myStatsFlow, botIntro, botHelp, debugFlow])
 
   const adapterProvider = createProvider(Provider, {
     name: process.env.BOT_NAME || 'wordle-tracker-bot',
