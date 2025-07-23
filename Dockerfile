@@ -28,9 +28,10 @@ FROM oven/bun:1-alpine as deploy
 
 WORKDIR /app
 
-ARG PORT
-ENV PORT $PORT
-EXPOSE $PORT
+ARG WEB_PORT=3001
+ENV WEB_PORT $WEB_PORT
+ENV NODE_ENV=production
+EXPOSE $WEB_PORT
 
 # Copy source files and dependencies
 COPY --from=builder /app/src ./src

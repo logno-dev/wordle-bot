@@ -131,6 +131,18 @@ app.get('/status', (req, res) => {
     hasQR: !!currentQRCode,
     user: sock?.user || null,
     status: connectionStatus,
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    uptime: process.uptime()
+  })
+})
+
+// Health check endpoint for production monitoring
+app.get('/health', (req, res) => {
+  const isHealthy = connectionStatus === 'connected' || connectionStatus === 'qr_ready'
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? 'healthy' : 'unhealthy',
+    connection: connectionStatus,
     timestamp: new Date().toISOString()
   })
 })
@@ -164,12 +176,26 @@ const connectToWhatsApp = async () => {
       } catch (e) {}
     }
 
+    // Production-optimized configuration
+    const isProduction = process.env.NODE_ENV === 'production'
+    
     sock = makeWASocket({
       auth: state,
-      browser: Browsers.macOS('Wordle Tracker Bot'),
+      browser: isProduction 
+        ? Browsers.ubuntu('Wordle Tracker Bot')  // Better for production servers
+        : Browsers.macOS('Wordle Tracker Bot'),
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 0,
-      keepAliveIntervalMs: 10000
+      keepAliveIntervalMs: 10000,
+      // Production-specific settings
+      retryRequestDelayMs: 250,
+      maxMsgRetryCount: 5,
+      // Disable some features that can cause issues in production
+      shouldSyncHistoryMessage: () => false,
+      shouldIgnoreJid: () => false,
+      // Better logging in production
+      printQRInTerminal: !isProduction, // Disable terminal QR in production
+      qrTimeout: 60000 // 60 second QR timeout
     })
 
     sock.ev.on('connection.update', async (update) => {
