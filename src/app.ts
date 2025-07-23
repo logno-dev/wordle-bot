@@ -192,10 +192,17 @@ app.post('/refresh-qr', (req, res) => {
   })
 })
 
-// Start web server
+// Start web server BEFORE WhatsApp connection
 app.listen(WEB_PORT, () => {
   console.log(`🌐 Web server running at http://localhost:${WEB_PORT}`)
   console.log(`📱 Open this URL to view the QR code: http://localhost:${WEB_PORT}`)
+  
+  // Start WhatsApp connection after web server is ready
+  console.log('🚀 Starting Wordle Tracker Bot...')
+  connectToWhatsApp().catch((error) => {
+    console.error('❌ Failed to start bot:', error)
+    process.exit(1)
+  })
 })
 
 const connectToWhatsApp = async () => {
@@ -621,9 +628,4 @@ process.on('SIGTERM', () => {
   process.exit(0)
 })
 
-// Start the bot
-console.log('🚀 Starting Wordle Tracker Bot...')
-connectToWhatsApp().catch((error) => {
-  console.error('❌ Failed to start bot:', error)
-  process.exit(1)
-})
+// Bot startup is now handled in the web server callback above
