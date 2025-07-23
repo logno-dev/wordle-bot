@@ -31,9 +31,12 @@ const MAX_RECONNECT_ATTEMPTS = 3
 let currentQRCode: string | null = null
 let connectionStatus = 'disconnected' // disconnected, connecting, qr_ready, connected
 let qrTimeout: NodeJS.Timeout | null = null
+let qrGenerationCount = 0
+let lastQRTime = 0
 const app = express()
 const WEB_PORT = process.env.WEB_PORT || 3001
-const QR_TIMEOUT_MS = 60000 // 60 seconds timeout for QR code
+const QR_TIMEOUT_MS = 45000 // 45 seconds timeout for QR code (shorter for production)
+const MAX_QR_ATTEMPTS = 10 // Maximum QR generation attempts
 
 app.get('/', (req, res) => {
   const getStatusMessage = () => {
@@ -147,6 +150,48 @@ app.get('/health', (req, res) => {
   })
 })
 
+// Manual QR refresh endpoint for production troubleshooting
+app.post('/refresh-qr', (req, res) => {
+  console.log('🔄 Manual QR refresh requested')
+  
+  if (connectionStatus === 'connected') {
+    res.json({ 
+      success: false, 
+      message: 'Already connected to WhatsApp',
+      status: connectionStatus 
+    })
+    return
+  }
+  
+  // Clear current QR and force reconnection
+  currentQRCode = null
+  connectionStatus = 'connecting'
+  qrGenerationCount = Math.max(0, qrGenerationCount - 2) // Give it more attempts
+  
+  if (qrTimeout) {
+    clearTimeout(qrTimeout)
+    qrTimeout = null
+  }
+  
+  if (sock) {
+    try {
+      sock.end()
+    } catch (e) {}
+  }
+  
+  // Force reconnection
+  setTimeout(() => {
+    console.log('🔄 Forcing reconnection after manual refresh')
+    connectToWhatsApp()
+  }, 1000)
+  
+  res.json({ 
+    success: true, 
+    message: 'QR refresh initiated',
+    qrAttempt: qrGenerationCount + 1
+  })
+})
+
 // Start web server
 app.listen(WEB_PORT, () => {
   console.log(`🌐 Web server running at http://localhost:${WEB_PORT}`)
@@ -202,8 +247,17 @@ const connectToWhatsApp = async () => {
       const { connection, lastDisconnect, qr } = update
       
       if (qr) {
-        console.log('\n🔗 QR code generated - view at http://localhost:' + WEB_PORT)
-        qrcode.generate(qr, { small: true })
+        qrGenerationCount++
+        lastQRTime = Date.now()
+        
+        console.log(`\n🔗 QR code generated (#${qrGenerationCount}) - view at http://localhost:${WEB_PORT}`)
+        console.log(`📊 QR Generation Stats: Attempt ${qrGenerationCount}/${MAX_QR_ATTEMPTS}`)
+        
+        // Only show terminal QR in development
+        if (process.env.NODE_ENV !== 'production') {
+          qrcode.generate(qr, { small: true })
+        }
+        
         connectionStatus = 'qr_ready'
         
         // Clear any existing timeout
@@ -211,31 +265,55 @@ const connectToWhatsApp = async () => {
           clearTimeout(qrTimeout)
         }
         
-        // Generate base64 QR code for web display
+        // Generate base64 QR code for web display with production optimizations
         try {
           currentQRCode = await QRCode.toDataURL(qr, {
             type: 'image/png',
-            width: 300,
-            margin: 2
+            width: 256, // Smaller for faster loading
+            margin: 1,
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF'
+            },
+            errorCorrectionLevel: 'M' // Medium error correction
           })
           currentQRCode = currentQRCode.replace('data:image/png;base64,', '')
           
-          // Set timeout for QR code
+          console.log('✅ QR code generated successfully for web display')
+          
+          // Set timeout for QR code with exponential backoff
+          const timeoutDuration = Math.min(QR_TIMEOUT_MS * Math.pow(1.2, qrGenerationCount - 1), 120000)
+          
           qrTimeout = setTimeout(() => {
-            console.log('⏰ QR code timeout - clearing QR and attempting reconnect')
+            console.log(`⏰ QR code timeout after ${timeoutDuration/1000}s (attempt ${qrGenerationCount})`)
+            
+            if (qrGenerationCount >= MAX_QR_ATTEMPTS) {
+              console.log('❌ Max QR attempts reached. Stopping reconnection attempts.')
+              console.log('💡 Try restarting the container or check network connectivity.')
+              currentQRCode = null
+              connectionStatus = 'disconnected'
+              return
+            }
+            
             currentQRCode = null
-            connectionStatus = 'disconnected'
+            connectionStatus = 'connecting'
+            
             if (sock) {
               try {
                 sock.end()
               } catch (e) {}
             }
-            // Attempt to reconnect after timeout
-            setTimeout(() => connectToWhatsApp(), 2000)
-          }, QR_TIMEOUT_MS)
+            
+            // Attempt to reconnect with delay
+            const reconnectDelay = 3000 + (qrGenerationCount * 1000) // Increasing delay
+            console.log(`🔄 Reconnecting in ${reconnectDelay/1000}s...`)
+            setTimeout(() => connectToWhatsApp(), reconnectDelay)
+          }, timeoutDuration)
           
         } catch (error) {
-          console.error('Error generating QR code for web:', error)
+          console.error('❌ Error generating QR code for web:', error)
+          // Try to reconnect even if QR generation fails
+          setTimeout(() => connectToWhatsApp(), 5000)
         }
       }
       
@@ -280,6 +358,10 @@ const connectToWhatsApp = async () => {
           clearTimeout(qrTimeout)
           qrTimeout = null
         }
+        
+        // Reset counters on successful connection
+        qrGenerationCount = 0
+        lastQRTime = 0
         
         isConnecting = false
         reconnectAttempts = 0
