@@ -561,8 +561,8 @@ const handleWordleMessage = async (sock: any, from: string, messageText: string,
     console.log('💾 Successfully saved Wordle score to database')
 
     // Send confirmation (optional)
-    const confirmationMsg = `✅ Wordle ${wordleData.gameNumber} score recorded for ${senderName}!`
-    await sock.sendMessage(from, { text: confirmationMsg })
+    // const confirmationMsg = `✅ Wordle ${wordleData.gameNumber} score recorded for ${senderName}!`
+    // await sock.sendMessage(from, { text: confirmationMsg })
 
   } catch (error) {
     console.error('❌ Error saving Wordle score:', error)
