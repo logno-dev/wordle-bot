@@ -474,7 +474,7 @@ const connectToWhatsApp = async () => {
             continue
           }
 
-          if (messageText.toLowerCase().includes('!intro')) {
+          if (messageText.toLowerCase().includes('!fact')) {
             console.log('🎯 Handling !intro command')
             await handleFactCommand(sock, from)
             continue
