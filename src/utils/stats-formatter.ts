@@ -30,7 +30,7 @@ export const formatStatsMessage = (
   
   enhancedPlayerStats.forEach((player: any) => {
     const name = truncateName(player.senderName)
-    const score = player.rankingScore.toFixed(2)
+    const score = Math.round(player.rankingScore)
     lines.push(`${player.rank}. ${name} - score: ${score}`)
   })
 
@@ -52,7 +52,7 @@ export const formatPersonalStats = (playerName: string, stats: EnhancedPlayerSta
   lines.push(`📊 *Personal Stats for ${truncateName(stats.senderName)}*`)
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   lines.push('')
-  lines.push(`🏆 Rank: #${stats.rank} - Score: ${stats.rankingScore.toFixed(2)}`)
+  lines.push(`🏆 Rank: #${stats.rank} - Score: ${Math.round(stats.rankingScore)}`)
   lines.push('')
   lines.push(`🎯 Total Games: ${stats.totalGames} (${stats.successfulGames} ✅, ${stats.failedGames} ❌)`)
   lines.push(`⭐ Average Attempts: ${stats.averageAttempts.toFixed(2)}`)
@@ -135,7 +135,7 @@ export const formatWeeklyStatsMessage = (
   
   enhancedPlayerStats.forEach((player: any) => {
     const name = truncateName(player.senderName)
-    const score = player.rankingScore.toFixed(2)
+    const score = Math.round(player.rankingScore)
     lines.push(`${player.rank}. ${name} - score: ${score}`)
   })
 

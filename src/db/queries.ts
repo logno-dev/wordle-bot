@@ -237,9 +237,9 @@ export const getWeeklyPlayerStats = async (): Promise<{ players: EnhancedPlayerS
     stats.currentStreak = currentStreak
     stats.maxStreak = maxStreak
 
-    // Calculate ranking score: success_rate * successful_games / average_score
+    // Calculate ranking score: success_rate * successful_games / average_score * 100
     stats.rankingScore = stats.successfulGames > 0 && stats.averageAttempts > 0 
-      ? (stats.winPercentage / 100) * stats.successfulGames / stats.averageAttempts 
+      ? ((stats.winPercentage / 100) * stats.successfulGames / stats.averageAttempts) * 100
       : 0
 
     // Remove games array from final output
@@ -356,9 +356,9 @@ export const getEnhancedPlayerStats = async (): Promise<EnhancedPlayerStats[]> =
     stats.currentStreak = currentStreak
     stats.maxStreak = maxStreak
 
-    // Calculate ranking score: success_rate * successful_games / average_score
+    // Calculate ranking score: success_rate * successful_games / average_score * 100
     stats.rankingScore = stats.successfulGames > 0 && stats.averageAttempts > 0 
-      ? (stats.winPercentage / 100) * stats.successfulGames / stats.averageAttempts 
+      ? ((stats.winPercentage / 100) * stats.successfulGames / stats.averageAttempts) * 100
       : 0
 
     // Remove games array from final output
