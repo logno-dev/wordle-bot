@@ -1,11 +1,11 @@
-import { PlayerStats } from '../db/queries'
+import { PlayerStats, EnhancedPlayerStats } from '../db/queries'
 
 export const formatStatsMessage = (
-  playerStats: PlayerStats[],
+  enhancedPlayerStats: EnhancedPlayerStats[],
   totalStats: any,
   recentActivity: any
 ): string => {
-  if (playerStats.length === 0) {
+  if (enhancedPlayerStats.length === 0) {
     return `📊 *Wordle Stats*\n\nNo games recorded yet! Send a Wordle score to get started.`
   }
 
@@ -18,42 +18,31 @@ export const formatStatsMessage = (
 
   // Overall stats
   lines.push('🌍 *Overall Stats*')
-  lines.push(`👥 Players: ${totalStats.totalPlayers}`)
-  lines.push(`🎯 Total Games: ${totalStats.totalGames} (${totalStats.successfulGames} ✅, ${totalStats.failedGames} ❌)`)
-  lines.push(`📈 Average Score: ${totalStats.overallAverage || 'N/A'}`)
-  lines.push(`🏆 Best Ever: ${totalStats.bestEverScore || 'N/A'}`)
-  lines.push(`📊 Success Rate: ${totalStats.overallSuccessRate}%`)
+  lines.push(`👥 Active Players: ${totalStats.totalPlayers}`)
+  lines.push(`🎯 Total Games: ${totalStats.totalGames}`)
+  lines.push(`📊 Overall Win Rate: ${totalStats.overallSuccessRate}%`)
   lines.push(`🔥 Recent Activity: ${recentActivity.gamesThisWeek} games this week`)
   lines.push('')
 
-  // Player rankings
+  // Player rankings - concise format
   lines.push('🏆 *Player Rankings*')
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   
-  playerStats.forEach((player, index) => {
-    const medal = getMedal(index + 1)
+  enhancedPlayerStats.forEach((player: any) => {
     const name = truncateName(player.senderName)
-    const score = getRankingScore(player)
-    
-    lines.push(`${medal} *${name}*`)
-    lines.push(`   📊 ${player.totalGames} games (${player.successfulGames} ✅, ${player.failedGames} ❌)`)
-    lines.push(`   ⭐ ${player.averageScore || 'N/A'} avg | 🎯 ${player.successRate}% | 🏆 Best: ${player.bestScore || 'N/A'}`)
-    lines.push(`   📈 Ranking Score: ${score}`)
-    
-    if (index < playerStats.length - 1) {
-      lines.push('')
-    }
+    const score = player.rankingScore.toFixed(2)
+    lines.push(`${player.rank}. ${name} - score: ${score}`)
   })
 
   lines.push('')
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  lines.push('💡 *Ranking:* Success rate × Successful games ÷ Average score')
-  lines.push('📱 Send "!mystats" for personal detailed stats')
+  lines.push('💡 *Ranking:* Win rate × Wins ÷ Average attempts')
+  lines.push('📱 Send "!mystats" for detailed personal stats')
 
   return lines.join('\n')
 }
 
-export const formatPersonalStats = (playerName: string, stats: PlayerStats | null): string => {
+export const formatPersonalStats = (playerName: string, stats: EnhancedPlayerStats | null): string => {
   if (!stats) {
     return `📊 *Personal Stats for ${truncateName(playerName)}*\n\nNo games recorded yet! Send a Wordle score to get started.`
   }
@@ -63,14 +52,19 @@ export const formatPersonalStats = (playerName: string, stats: PlayerStats | nul
   lines.push(`📊 *Personal Stats for ${truncateName(stats.senderName)}*`)
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   lines.push('')
-  lines.push(`🏆 Rank: #${stats.rank}`)
-  lines.push(`🎯 Total Games: ${stats.totalGames}`)
-  lines.push(`⭐ Average Score: ${stats.averageScore}`)
-  lines.push(`🏅 Best Score: ${stats.bestScore}`)
-  lines.push(`📊 Success Rate: ${stats.successRate}%`)
-  lines.push(`📈 Ranking Score: ${getRankingScore(stats)}`)
+  lines.push(`🏆 Rank: #${stats.rank} - Score: ${stats.rankingScore.toFixed(2)}`)
   lines.push('')
-  lines.push(getPerformanceEmoji(stats.averageScore, stats.successRate))
+  lines.push(`🎯 Total Games: ${stats.totalGames} (${stats.successfulGames} ✅, ${stats.failedGames} ❌)`)
+  lines.push(`⭐ Average Attempts: ${stats.averageAttempts.toFixed(2)}`)
+  lines.push(`🏅 Best Score: ${stats.bestScore || 'N/A'}`)
+  lines.push(`📊 Win Rate: ${stats.winPercentage.toFixed(1)}%`)
+  lines.push(`🔥 Current Streak: ${stats.currentStreak} | Max Streak: ${stats.maxStreak}`)
+  lines.push('')
+  lines.push('🎯 *Attempts Distribution:*')
+  lines.push(`1️⃣ ${stats.wins1} | 2️⃣ ${stats.wins2} | 3️⃣ ${stats.wins3}`)
+  lines.push(`4️⃣ ${stats.wins4} | 5️⃣ ${stats.wins5} | 6️⃣ ${stats.wins6}`)
+  lines.push('')
+  lines.push(getPerformanceEmoji(stats.averageAttempts, stats.winPercentage))
 
   return lines.join('\n')
 }
@@ -106,4 +100,49 @@ const getPerformanceEmoji = (avgScore: number, successRate: number): string => {
   } else {
     return '💪 *Keep Practicing!* Every game makes you better!'
   }
+}
+
+export const formatWeeklyStatsMessage = (
+  enhancedPlayerStats: EnhancedPlayerStats[],
+  weekRange: string
+): string => {
+  if (enhancedPlayerStats.length === 0) {
+    return `📊 *Weekly Wordle Stats (${weekRange})*\n\nNo games recorded this week yet!`
+  }
+
+  const lines: string[] = []
+  
+  // Header
+  lines.push(`📊 *Weekly Wordle Leaderboard*`)
+  lines.push(`📅 *${weekRange}*`)
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  lines.push('')
+
+  // Weekly stats summary
+  const totalGames = enhancedPlayerStats.reduce((sum: any, p: any) => sum + p.totalGames, 0)
+  const totalWins = enhancedPlayerStats.reduce((sum: any, p: any) => sum + p.successfulGames, 0)
+  const overallWinRate = totalGames > 0 ? ((totalWins / totalGames) * 100).toFixed(1) : '0.0'
+
+  lines.push('📈 *This Week*')
+  lines.push(`👥 Active Players: ${enhancedPlayerStats.length}`)
+  lines.push(`🎯 Total Games: ${totalGames}`)
+  lines.push(`📊 Overall Win Rate: ${overallWinRate}%`)
+  lines.push('')
+
+  // Player rankings - concise format
+  lines.push('🏆 *Weekly Rankings*')
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  
+  enhancedPlayerStats.forEach((player: any) => {
+    const name = truncateName(player.senderName)
+    const score = player.rankingScore.toFixed(2)
+    lines.push(`${player.rank}. ${name} - score: ${score}`)
+  })
+
+  lines.push('')
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  lines.push('💡 *Ranking:* Win rate × Wins ÷ Average attempts')
+  lines.push('📱 Send "!mystats" for detailed personal stats')
+
+  return lines.join('\n')
 }

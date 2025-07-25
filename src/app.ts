@@ -12,8 +12,8 @@ import express from 'express'
 import { config } from 'dotenv'
 import { db, initializeDatabase, schema } from './db'
 import { parseWordleMessage } from './utils/wordle-parser'
-import { getPlayerStats, getTotalStats, getRecentActivity } from './db/queries'
-import { formatStatsMessage, formatPersonalStats } from './utils/stats-formatter'
+import { getPlayerStats, getTotalStats, getRecentActivity, getEnhancedPlayerStats, getWeeklyPlayerStats } from './db/queries'
+import { formatStatsMessage, formatPersonalStats, formatWeeklyStatsMessage } from './utils/stats-formatter'
 import { getRandomFact } from './utils/random-fact'
 
 config()
@@ -450,6 +450,12 @@ const connectToWhatsApp = async () => {
             continue
           }
 
+          if (messageText.toLowerCase().includes('!weekly')) {
+            console.log('🎯 Handling !weekly command')
+            await handleWeeklyStatsCommand(sock, from)
+            continue
+          }
+
           if (messageText.toLowerCase().includes('!mystats')) {
             console.log('🎯 Handling !mystats command')
             await handleMyStatsCommand(sock, from, senderName)
@@ -572,13 +578,13 @@ const handleWordleMessage = async (sock: any, from: string, messageText: string,
 const handleStatsCommand = async (sock: any, from: string) => {
   try {
     console.log('📊 Fetching stats...')
-    const [playerStats, totalStats, recentActivity] = await Promise.all([
-      getPlayerStats(),
+    const [enhancedPlayerStats, totalStats, recentActivity] = await Promise.all([
+      getEnhancedPlayerStats(),
       getTotalStats(),
       getRecentActivity()
     ])
 
-    const statsMessage = formatStatsMessage(playerStats, totalStats, recentActivity)
+    const statsMessage = formatStatsMessage(enhancedPlayerStats, totalStats, recentActivity)
     await sock.sendMessage(from, { text: statsMessage })
     console.log('📊 Stats sent successfully')
   } catch (error) {
@@ -587,11 +593,25 @@ const handleStatsCommand = async (sock: any, from: string) => {
   }
 }
 
+const handleWeeklyStatsCommand = async (sock: any, from: string) => {
+  try {
+    console.log('📊 Fetching weekly stats...')
+    const { players, weekRange } = await getWeeklyPlayerStats()
+
+    const weeklyStatsMessage = formatWeeklyStatsMessage(players, weekRange)
+    await sock.sendMessage(from, { text: weeklyStatsMessage })
+    console.log('📊 Weekly stats sent successfully')
+  } catch (error) {
+    console.error('❌ Error fetching weekly stats:', error)
+    await sock.sendMessage(from, { text: 'Sorry, there was an error fetching the weekly stats.' })
+  }
+}
+
 const handleMyStatsCommand = async (sock: any, from: string, senderName: string) => {
   try {
     console.log(`📊 Fetching personal stats for ${senderName}...`)
-    const playerStats = await getPlayerStats()
-    const userStats = playerStats.find(p => p.senderName === senderName)
+    const enhancedPlayerStats = await getEnhancedPlayerStats()
+    const userStats = enhancedPlayerStats.find((p: any) => p.senderName === senderName)
 
     const personalStatsMessage = formatPersonalStats(senderName, userStats || null)
     await sock.sendMessage(from, { text: personalStatsMessage })
@@ -606,6 +626,7 @@ const handleHelpCommand = async (sock: any, from: string) => {
   const helpMessage = `🤖 Wordle Tracker Bot Commands:
 
 !stats - Overall statistics
+!weekly - This week's statistics
 !mystats - Your personal statistics  
 !help - This message
 !intro - Bot introduction
