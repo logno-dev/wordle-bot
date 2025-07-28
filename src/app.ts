@@ -535,7 +535,7 @@ const handleHintCommand = async (sock: any, from: string) => {
 }
 
 const handleFactCommand = async (sock: any, from: string) => {
-  await sock.sendMessage(from, { text: getRandomFact() })
+  await sock.sendMessage(from, { text: "Wordle Fact ✔︎:" + getRandomFact() })
 }
 
 const handleWordleMessage = async (sock: any, from: string, messageText: string, senderName: string, isGroup: boolean) => {
@@ -630,6 +630,8 @@ const handleHelpCommand = async (sock: any, from: string) => {
 !mystats - Your personal statistics  
 !help - This message
 !intro - Bot introduction
+!hint - Get a helpful Wordle tip
+!fact - Get a random Wordle fact
 
 Just share your Wordle results and I'll track them automatically!`
 
